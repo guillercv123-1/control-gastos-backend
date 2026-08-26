@@ -90,7 +90,7 @@ build:
     sourcemap: true
     target: node22
     platform: node
-    concurrency: 10
+    buildConcurrency: 10
     external:
       - '@aws-sdk/*'
 

@@ -4,7 +4,7 @@
   "description": "Backend Node.js + TypeScript sobre AWS (Serverless Framework)",
   "license": "MIT",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
