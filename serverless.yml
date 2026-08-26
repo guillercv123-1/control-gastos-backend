@@ -1,9 +1,8 @@
 service: control-gastos-backend
 
-frameworkVersion: '3'
+frameworkVersion: '4'
 
 plugins:
-  - serverless-esbuild
   - serverless-iam-roles-per-function
 
 provider:
@@ -49,16 +48,6 @@ provider:
 
 custom:
   alertEmail: ${param:alertEmail, 'guillercv123@gmail.com'}
-  esbuild:
-    bundle: true
-    minify: false
-    sourcemap: true
-    target: node22
-    platform: node
-    concurrency: 10
-    external:
-      - '@aws-sdk/*'
-
   iamDynamoRead: &iamDynamoRead
     Effect: Allow
     Action:
@@ -93,6 +82,17 @@ custom:
           - ''
           - - Fn::GetAtt: [GastosTable, Arn]
             - '/index/*'
+
+build:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node22
+    platform: node
+    concurrency: 10
+    external:
+      - '@aws-sdk/*'
 
 package:
   individually: true
