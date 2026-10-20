@@ -18,3 +18,4 @@ aws.json
 .vscode/
 .serverless/
 .esbuild/
+/scripts/

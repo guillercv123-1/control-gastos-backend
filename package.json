@@ -9,8 +9,10 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "package": "serverless package",
-    "deploy": "serverless deploy",
-    "remove": "serverless remove"
+    "deploy:dev": "serverless deploy --stage dev",
+    "deploy:prod": "serverless deploy --stage prod",
+    "remove:dev": "serverless remove --stage dev",
+    "remove:prod": "serverless remove --stage prod"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.620.0",
@@ -27,7 +29,7 @@
   "devDependencies": {
     "@types/aws-lambda": "^8.10.137",
     "@types/node": "^20.12.7",
-    "serverless": "^4.41.0",
+    "serverless": "^4.44.0",
     "serverless-iam-roles-per-function": "^3.2.0",
     "typescript": "^5.4.5"
   }
