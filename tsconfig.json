@@ -16,6 +16,10 @@
     "rootDir": "src",
     "types": ["node", "aws-lambda"]
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "node_modules/@types/jest/index.d.ts",
+    "node_modules/@types/jest/index.d.ts"
+  ],
   "exclude": ["node_modules", "dist", ".aws-sam"]
 }

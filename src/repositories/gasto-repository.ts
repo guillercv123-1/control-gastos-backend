@@ -33,7 +33,7 @@ export class GastoRepository {
     }
 
     async delete(userId: string, id: string): Promise<boolean> {
-        const res = await ddb.send(
+        const res = await this.dynamo.send(
             new DeleteCommand({
                 TableName: this.table,
                 Key: itemKey(userId, id),
@@ -71,7 +71,7 @@ export class GastoRepository {
 
     async listar(userId: string, filtros: ListarFiltros = {}): Promise<GastoItem[]> {
         if (filtros.mes) {
-            const res = await ddb.send(
+            const res = await this.dynamo.send(
                 new QueryCommand({
                     TableName: this.table,
                     IndexName: 'GSI1',
