@@ -41,7 +41,8 @@ jobs:
 
       - name: Empaquetar aplicación
         run: npm run package -- --stage dev
-
+        env:
+          SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
   deploy:
     name: Desplegar aplicación en AWS
     runs-on: ubuntu-latest
