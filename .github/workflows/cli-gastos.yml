@@ -11,7 +11,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: control-gastos-${{ github.ref }}
@@ -39,10 +38,21 @@ jobs:
       - name: Validar TypeScript
         run: npm run typecheck
 
+      - name: Configurar credenciales de AWS
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Verificar identidad de AWS
+        run: aws sts get-caller-identity
+
       - name: Empaquetar aplicación
         run: npm run package -- --stage dev
         env:
           SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
+
   deploy:
     name: Desplegar aplicación en AWS
     runs-on: ubuntu-latest
@@ -50,7 +60,7 @@ jobs:
 
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
 
-    environment: developer
+    environment: production
 
     steps:
       - name: Descargar repositorio
@@ -72,6 +82,9 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
+
+      - name: Verificar identidad de AWS
+        run: aws sts get-caller-identity
 
       - name: Desplegar aplicación
         run: npm run deploy:dev
