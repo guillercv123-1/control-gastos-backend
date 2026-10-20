@@ -16,9 +16,7 @@ export class AlertaHormigaService {
     const { totalHormiga } = calcularResumen(mes, items.map(toGasto));
 
     if (cruzaUmbral(totalHormiga, gasto.monto, config.umbralAlertaMensual)) {
-      logger.info('umbral hormiga cruzado, enviando alerta', {
-        userId: gasto.userId, mes, totalHormiga,
-      });
+      logger.info({ operation: 'expense_alert_threshold_crossed' });
       await publicarAlerta(gasto.userId, mes, totalHormiga, config.umbralAlertaMensual);
     }
   }

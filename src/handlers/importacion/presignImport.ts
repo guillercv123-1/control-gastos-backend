@@ -17,6 +17,6 @@ export const handler = withMiddleware(async (event) => {
   const key = construirKeyImport(userId, filename);
   const uploadUrl = await generarUrlSubida(key, EXPIRA_SEG);
 
-  logger.info('url de subida generada', { userId, key });
+  logger.info({ operation: 'import_upload_url_created' });
   return ok({ uploadUrl, key, expiraEn: EXPIRA_SEG });
 });

@@ -7,7 +7,9 @@ import { withErrorLogging } from '../../lib/middleware';
 export const handler = withErrorLogging(
   async (event: ScheduledEvent & { mes?: string }) => {
     const mes = event?.mes ?? mesAnterior(new Date());
-    logger.info('iniciando reporte mensual', { mes });
+    logger.info({ operation: 'monthly_report_started' });
     await reporteMensualService.generarYEnviar(mes);
   },
+  'monthly_report',
+  'REPORT_GENERATION_FAILED',
 );

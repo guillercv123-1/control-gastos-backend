@@ -1,5 +1,6 @@
 import {
     BatchWriteCommand,
+    type BatchWriteCommandInput,
     DeleteCommand,
     GetCommand,
     PutCommand,
@@ -8,6 +9,20 @@ import {
 import { ddb } from '../lib/dynamo';
 import { config } from '../config/env';
 import { itemKey, type GastoItem, type Gasto, UMBRAL_HORMIGA, buildKeys } from '../domain/gasto';
+import { AppError } from '../lib/errors';
+
+const MAX_BATCH_WRITE_RETRIES = 3;
+const BASE_BATCH_WRITE_DELAY_MS = 25;
+
+export class UnprocessedItemsError extends AppError {
+    constructor(readonly count: number) {
+        super('DYNAMODB_UNPROCESSED_ITEMS', true, count);
+        this.name = 'UnprocessedItemsError';
+    }
+}
+
+const esperar = (durationMs: number): Promise<void> =>
+    new Promise((resolve) => setTimeout(resolve, durationMs));
 
 export interface ListarFiltros {
     mes?: string;
@@ -19,6 +34,7 @@ export class GastoRepository {
     constructor(
         private readonly dynamo = ddb,
         private readonly table = config.tableName,
+        private readonly wait: (durationMs: number) => Promise<void> = esperar,
     ) {}
 
     async put(item: GastoItem): Promise<void> {
@@ -125,9 +141,22 @@ export class GastoRepository {
     async putLote(items: GastoItem[]): Promise<void> {
         for (let i = 0; i < items.length; i += 25) {
             const lote = items.slice(i, i + 25);
-            await this.dynamo.send(new BatchWriteCommand({
-                RequestItems: { [this.table]: lote.map((Item) => ({ PutRequest: { Item } })) },
-            }));
+            let pendientes: NonNullable<BatchWriteCommandInput['RequestItems']>[string] =
+                lote.map((Item) => ({ PutRequest: { Item } }));
+
+            for (let intento = 0; intento <= MAX_BATCH_WRITE_RETRIES; intento += 1) {
+                const respuesta = await this.dynamo.send(new BatchWriteCommand({
+                    RequestItems: { [this.table]: pendientes },
+                }));
+                pendientes = respuesta.UnprocessedItems?.[this.table] ?? [];
+                if (pendientes.length === 0) break;
+
+                if (intento === MAX_BATCH_WRITE_RETRIES) {
+                    throw new UnprocessedItemsError(pendientes.length);
+                }
+
+                await this.wait(BASE_BATCH_WRITE_DELAY_MS * (2 ** intento));
+            }
         }
     }
 }

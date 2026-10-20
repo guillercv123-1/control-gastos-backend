@@ -19,13 +19,13 @@ export class ReporteMensualService {
     }
 
     if (porUsuario.size === 0) {
-      logger.info('reporte mensual: sin gastos en el periodo', { mes });
+      logger.info({ operation: 'monthly_report_no_data' });
       return;
     }
 
     const mensaje = componerReporteMensual(mes, porUsuario);
     await publicarMensaje(`Resumen mensual de gastos hormiga (${mes})`, mensaje);
-    logger.info('reporte mensual enviado', { mes, usuarios: porUsuario.size });
+    logger.info({ operation: 'monthly_report_published', count: porUsuario.size });
   }
 }
 

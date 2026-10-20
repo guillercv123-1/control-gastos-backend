@@ -17,7 +17,10 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { mockClient } from 'aws-sdk-client-mock';
 import { buildKeys, type GastoItem } from '../domain/gasto';
-import { GastoRepository } from './gasto-repository';
+import {
+  GastoRepository,
+  UnprocessedItemsError,
+} from './gasto-repository';
 
 const ddbMock = mockClient(DynamoDBDocumentClient);
 const tableName = 'tabla-pruebas';
@@ -296,5 +299,79 @@ describe('GastoRepository', () => {
         [tableName]: gastos.map((Item) => ({ PutRequest: { Item } })),
       },
     });
+    expect(ddbMock.commandCalls(BatchWriteCommand)).toHaveLength(1);
+  });
+
+  it('debe reintentar los elementos no procesados y completar el lote', async () => {
+    // Arrange
+    const esperas: number[] = [];
+    const repositorio = new GastoRepository(
+      DynamoDBDocumentClient.from(new DynamoDBClient({})),
+      tableName,
+      async (durationMs) => {
+        esperas.push(durationMs);
+      },
+    );
+    const gasto = crearGasto('gasto-1');
+    const solicitudNoProcesada = { PutRequest: { Item: gasto } };
+    ddbMock.on(BatchWriteCommand)
+      .resolvesOnce({ UnprocessedItems: { [tableName]: [solicitudNoProcesada] } })
+      .resolvesOnce({});
+
+    // Act
+    await repositorio.putLote([gasto]);
+
+    // Assert
+    const llamadas = ddbMock.commandCalls(BatchWriteCommand);
+    expect(llamadas).toHaveLength(2);
+    expect(llamadas[1]?.args[0].input.RequestItems?.[tableName]).toEqual([
+      solicitudNoProcesada,
+    ]);
+    expect(esperas).toEqual([25]);
+  });
+
+  it('debe lanzar error tipado cuando expira el máximo de reintentos del lote', async () => {
+    // Arrange
+    const esperas: number[] = [];
+    const repositorio = new GastoRepository(
+      DynamoDBDocumentClient.from(new DynamoDBClient({})),
+      tableName,
+      async (durationMs) => {
+        esperas.push(durationMs);
+      },
+    );
+    const gasto = crearGasto('gasto-1');
+    ddbMock.on(BatchWriteCommand).resolves({
+      UnprocessedItems: {
+        [tableName]: [{ PutRequest: { Item: gasto } }],
+      },
+    });
+
+    // Act
+    const operacion = repositorio.putLote([gasto]);
+
+    // Assert
+    await expect(operacion).rejects.toBeInstanceOf(UnprocessedItemsError);
+    await expect(operacion).rejects.toMatchObject({
+      errorCode: 'DYNAMODB_UNPROCESSED_ITEMS',
+      retryable: true,
+      count: 1,
+    });
+    expect(ddbMock.commandCalls(BatchWriteCommand)).toHaveLength(4);
+    expect(esperas).toEqual([25, 50, 100]);
+  });
+
+  it('debe propagar errores inesperados de BatchWrite', async () => {
+    // Arrange
+    const repositorio = crearRepositorioConClienteInyectado();
+    const error = new Error('Fallo de DynamoDB');
+    ddbMock.on(BatchWriteCommand).rejects(error);
+
+    // Act
+    const operacion = repositorio.putLote([crearGasto('gasto-1')]);
+
+    // Assert
+    await expect(operacion).rejects.toBe(error);
+    expect(ddbMock.commandCalls(BatchWriteCommand)).toHaveLength(1);
   });
 });

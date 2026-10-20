@@ -13,6 +13,7 @@ provider:
   stage: dev
   memorySize: 128
   timeout: 10
+  logRetentionInDays: 30
   environment:
     SERVICE_NAME: control-gastos-backend
     STAGE: dev
@@ -243,6 +244,7 @@ functions:
             Fn::GetAtt: [GastosTable, StreamArn]
           startingPosition: LATEST
           batchSize: 10
+          functionResponseType: ReportBatchItemFailures
 
   reporteMensual:
     handler: src/handlers/scheduled/reporteMensual.handler
@@ -278,6 +280,7 @@ functions:
           arn:
             Fn::GetAtt: [ImportQueue, Arn]
           batchSize: 1
+          functionResponseType: ReportBatchItemFailures
 
   presignImport:
     handler: src/handlers/importacion/presignImport.handler

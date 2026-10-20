@@ -6,7 +6,8 @@ import type {
   APIGatewayProxyEventV2WithJWTAuthorizer,
   APIGatewayProxyStructuredResultV2,
 } from 'aws-lambda';
-import { logger } from './logger';
+import { logger, type LogOperation } from './logger';
+import type { ErrorCode } from './errors';
 import { ValidationError } from './validate';
 
 type HttpHandler = (
@@ -84,7 +85,11 @@ const httpErrorHandler = (): middy.MiddlewareObj<
       return;
     }
 
-    logger.error('error no controlado', { error: err.message, stack: err.stack });
+    logger.error({
+      operation: 'http_request',
+      errorCode: 'HTTP_REQUEST_FAILED',
+      retryable: false,
+    });
     request.response = json(500, { error: 'Error interno' });
   },
 });
@@ -119,12 +124,15 @@ export const withMiddleware = (handler: HttpHandler, bodySchema?: object) => {
  */
 export const withErrorLogging = <TEvent, TResult>(
   handler: (event: TEvent) => Promise<TResult>,
+  operation: LogOperation = 'event_handler',
+  errorCode: ErrorCode = 'EVENT_HANDLER_FAILED',
 ) =>
   middy<TEvent, TResult>(handler).use({
-    onError: (request) => {
-      logger.error('error no controlado en handler', {
-        error: (request.error as Error)?.message,
-        stack: (request.error as Error)?.stack,
+    onError: () => {
+      logger.error({
+        operation,
+        errorCode,
+        retryable: true,
       });
     },
   });
