@@ -5,6 +5,7 @@ npm-debug.log*
 # TypeScript / SAM build
 dist/
 .aws-sam/
+coverage/
 
 # Entorno / credenciales (NUNCA subir esto)
 .env

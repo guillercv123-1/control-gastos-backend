@@ -9,6 +9,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "package": "serverless package",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --runInBand",
     "deploy:dev": "serverless deploy --stage dev",
     "deploy:prod": "serverless deploy --stage prod",
     "remove:dev": "serverless remove --stage dev",
@@ -28,9 +31,12 @@
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.137",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.12.7",
+    "jest": "^30.5.2",
     "serverless": "^4.44.0",
     "serverless-iam-roles-per-function": "^3.2.0",
+    "ts-jest": "^29.4.15",
     "typescript": "^5.4.5"
   }
 }
