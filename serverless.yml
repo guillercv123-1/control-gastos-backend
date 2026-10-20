@@ -49,6 +49,7 @@ provider:
 
 custom:
   alertEmail: ${param:alertEmail, 'guillercv123@gmail.com'}
+  operationsEmail: ${param:operationsEmail, ''}
   iamDynamoRead: &iamDynamoRead
     Effect: Allow
     Action:
@@ -304,6 +305,13 @@ functions:
 
 # ===================== Recursos CloudFormation (copiados del SAM, intrinsecos en forma larga) =====================
 resources:
+  Transform: AWS::LanguageExtensions
+  Conditions:
+    HasOperationsEmail:
+      Fn::Not:
+        - Fn::Equals:
+            - ${self:custom.operationsEmail}
+            - ''
   Resources:
 
     UserPool:
@@ -447,6 +455,557 @@ resources:
                   Rules:
                     - Name: suffix
                       Value: .csv
+
+    OperationalAlarmTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: control-gastos-${sls:stage}-alarmas-operativas
+
+    OperationalAlarmEmailSubscription:
+      Type: AWS::SNS::Subscription
+      Condition: HasOperationsEmail
+      Properties:
+        Protocol: email
+        Endpoint: ${self:custom.operationsEmail}
+        TopicArn:
+          Ref: OperationalAlarmTopic
+
+    OperationsDashboard:
+      Type: AWS::CloudWatch::Dashboard
+      Properties:
+        DashboardName: control-gastos-${sls:stage}
+        DashboardBody:
+          Fn::ToJsonString: ${file(./observability/dashboard.json)}
+
+    ImportDlqVisibleMessagesAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: control-gastos-${sls:stage}-import-dlq-messages
+        AlarmDescription: La DLQ de importaciones contiene mensajes.
+        Namespace: AWS/SQS
+        MetricName: ApproximateNumberOfMessagesVisible
+        Dimensions:
+          - Name: QueueName
+            Value:
+              Fn::GetAtt: [ImportDLQ, QueueName]
+        Statistic: Maximum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - Ref: OperationalAlarmTopic
+
+    ImportQueueOldestMessageAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: control-gastos-${sls:stage}-import-oldest-message
+        AlarmDescription: Un mensaje de importación lleva más de cinco minutos en cola.
+        Namespace: AWS/SQS
+        MetricName: ApproximateAgeOfOldestMessage
+        Dimensions:
+          - Name: QueueName
+            Value:
+              Fn::GetAtt: [ImportQueue, QueueName]
+        Statistic: Maximum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 300
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - Ref: OperationalAlarmTopic
+
+    CriticalLambdaThrottlesAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: control-gastos-${sls:stage}-critical-lambda-throttles
+        AlarmDescription: Se detectaron throttles en una función crítica.
+        ComparisonOperator: GreaterThanThreshold
+        Threshold: 0
+        EvaluationPeriods: 1
+        TreatMissingData: notBreaching
+        Metrics:
+          - Id: t1
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Throttles
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: CrearGastoLambdaFunction }
+              Period: 60
+              Stat: Sum
+          - Id: t2
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Throttles
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: ListarGastosLambdaFunction }
+              Period: 60
+              Stat: Sum
+          - Id: t3
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Throttles
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: ImportarGastosLambdaFunction }
+              Period: 60
+              Stat: Sum
+          - Id: t4
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Throttles
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: ProcesarStreamLambdaFunction }
+              Period: 60
+              Stat: Sum
+          - Id: t5
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Throttles
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: ReporteMensualLambdaFunction }
+              Period: 60
+              Stat: Sum
+          - Id: total
+            Expression: t1+t2+t3+t4+t5
+            Label: Throttles en funciones críticas
+            ReturnData: true
+        AlarmActions:
+          - Ref: OperationalAlarmTopic
+
+    DynamoSystemErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: control-gastos-${sls:stage}-dynamodb-system-errors
+        AlarmDescription: DynamoDB informó errores de sistema.
+        ComparisonOperator: GreaterThanThreshold
+        Threshold: 0
+        EvaluationPeriods: 1
+        TreatMissingData: notBreaching
+        Metrics:
+          - Id: s1
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/DynamoDB
+                MetricName: SystemErrors
+                Dimensions:
+                  - Name: TableName
+                    Value: { Ref: GastosTable }
+                  - Name: Operation
+                    Value: GetItem
+              Period: 60
+              Stat: Sum
+          - Id: s2
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/DynamoDB
+                MetricName: SystemErrors
+                Dimensions:
+                  - Name: TableName
+                    Value: { Ref: GastosTable }
+                  - Name: Operation
+                    Value: PutItem
+              Period: 60
+              Stat: Sum
+          - Id: s3
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/DynamoDB
+                MetricName: SystemErrors
+                Dimensions:
+                  - Name: TableName
+                    Value: { Ref: GastosTable }
+                  - Name: Operation
+                    Value: DeleteItem
+              Period: 60
+              Stat: Sum
+          - Id: s4
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/DynamoDB
+                MetricName: SystemErrors
+                Dimensions:
+                  - Name: TableName
+                    Value: { Ref: GastosTable }
+                  - Name: Operation
+                    Value: Query
+              Period: 60
+              Stat: Sum
+          - Id: s5
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/DynamoDB
+                MetricName: SystemErrors
+                Dimensions:
+                  - Name: TableName
+                    Value: { Ref: GastosTable }
+                  - Name: Operation
+                    Value: Scan
+              Period: 60
+              Stat: Sum
+          - Id: s6
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/DynamoDB
+                MetricName: SystemErrors
+                Dimensions:
+                  - Name: TableName
+                    Value: { Ref: GastosTable }
+                  - Name: Operation
+                    Value: BatchWriteItem
+              Period: 60
+              Stat: Sum
+          - Id: total
+            Expression: s1+s2+s3+s4+s5+s6
+            Label: Errores de sistema DynamoDB
+            ReturnData: true
+        AlarmActions:
+          - Ref: OperationalAlarmTopic
+
+    DynamoThrottledRequestsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: control-gastos-${sls:stage}-dynamodb-throttled-requests
+        AlarmDescription: DynamoDB limitó una o más solicitudes.
+        ComparisonOperator: GreaterThanThreshold
+        Threshold: 0
+        EvaluationPeriods: 1
+        TreatMissingData: notBreaching
+        Metrics:
+          - Id: d1
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/DynamoDB
+                MetricName: ThrottledRequests
+                Dimensions:
+                  - Name: TableName
+                    Value: { Ref: GastosTable }
+                  - Name: Operation
+                    Value: GetItem
+              Period: 60
+              Stat: Sum
+          - Id: d2
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/DynamoDB
+                MetricName: ThrottledRequests
+                Dimensions:
+                  - Name: TableName
+                    Value: { Ref: GastosTable }
+                  - Name: Operation
+                    Value: PutItem
+              Period: 60
+              Stat: Sum
+          - Id: d3
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/DynamoDB
+                MetricName: ThrottledRequests
+                Dimensions:
+                  - Name: TableName
+                    Value: { Ref: GastosTable }
+                  - Name: Operation
+                    Value: DeleteItem
+              Period: 60
+              Stat: Sum
+          - Id: d4
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/DynamoDB
+                MetricName: ThrottledRequests
+                Dimensions:
+                  - Name: TableName
+                    Value: { Ref: GastosTable }
+                  - Name: Operation
+                    Value: Query
+              Period: 60
+              Stat: Sum
+          - Id: d5
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/DynamoDB
+                MetricName: ThrottledRequests
+                Dimensions:
+                  - Name: TableName
+                    Value: { Ref: GastosTable }
+                  - Name: Operation
+                    Value: Scan
+              Period: 60
+              Stat: Sum
+          - Id: d6
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/DynamoDB
+                MetricName: ThrottledRequests
+                Dimensions:
+                  - Name: TableName
+                    Value: { Ref: GastosTable }
+                  - Name: Operation
+                    Value: BatchWriteItem
+              Period: 60
+              Stat: Sum
+          - Id: total
+            Expression: d1+d2+d3+d4+d5+d6
+            Label: Solicitudes limitadas de DynamoDB
+            ReturnData: true
+        AlarmActions:
+          - Ref: OperationalAlarmTopic
+
+    SnsNotificationFailuresAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: control-gastos-${sls:stage}-sns-notification-failures
+        AlarmDescription: SNS informó fallos de entrega de notificaciones.
+        Namespace: AWS/SNS
+        MetricName: NumberOfNotificationsFailed
+        Dimensions:
+          - Name: TopicName
+            Value:
+              Fn::GetAtt: [AlertTopic, TopicName]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - Ref: OperationalAlarmTopic
+
+    StreamIteratorAgeAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: control-gastos-${sls:stage}-stream-iterator-age
+        AlarmDescription: El consumidor del stream está retrasado más de cinco minutos.
+        Namespace: AWS/Lambda
+        MetricName: IteratorAge
+        Dimensions:
+          - Name: FunctionName
+            Value:
+              Ref: ProcesarStreamLambdaFunction
+        Statistic: Maximum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 300000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - Ref: OperationalAlarmTopic
+
+    ImportDurationP95Alarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: control-gastos-${sls:stage}-import-duration-p95
+        AlarmDescription: p95 de importarGastos supera el 80 por ciento de su timeout.
+        Namespace: AWS/Lambda
+        MetricName: Duration
+        Dimensions:
+          - Name: FunctionName
+            Value:
+              Ref: ImportarGastosLambdaFunction
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 24000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - Ref: OperationalAlarmTopic
+
+    StreamDurationP95Alarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: control-gastos-${sls:stage}-stream-duration-p95
+        AlarmDescription: p95 de procesarStream supera el 80 por ciento de su timeout.
+        Namespace: AWS/Lambda
+        MetricName: Duration
+        Dimensions:
+          - Name: FunctionName
+            Value:
+              Ref: ProcesarStreamLambdaFunction
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 8000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - Ref: OperationalAlarmTopic
+
+    MonthlyReportDurationP95Alarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: control-gastos-${sls:stage}-monthly-report-duration-p95
+        AlarmDescription: p95 de reporteMensual supera el 80 por ciento de su timeout.
+        Namespace: AWS/Lambda
+        MetricName: Duration
+        Dimensions:
+          - Name: FunctionName
+            Value:
+              Ref: ReporteMensualLambdaFunction
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 24000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - Ref: OperationalAlarmTopic
+
+    CriticalLambdaErrorRateAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: control-gastos-${sls:stage}-critical-lambda-error-rate
+        AlarmDescription: Tasa de error agrupada mayor al 2 por ciento con al menos 20 invocaciones.
+        ComparisonOperator: GreaterThanThreshold
+        Threshold: 2
+        EvaluationPeriods: 2
+        DatapointsToAlarm: 2
+        TreatMissingData: notBreaching
+        Metrics:
+          - Id: i1
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Invocations
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: CrearGastoLambdaFunction }
+              Period: 300
+              Stat: Sum
+          - Id: e1
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Errors
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: CrearGastoLambdaFunction }
+              Period: 300
+              Stat: Sum
+          - Id: i2
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Invocations
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: ListarGastosLambdaFunction }
+              Period: 300
+              Stat: Sum
+          - Id: e2
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Errors
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: ListarGastosLambdaFunction }
+              Period: 300
+              Stat: Sum
+          - Id: i3
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Invocations
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: ImportarGastosLambdaFunction }
+              Period: 300
+              Stat: Sum
+          - Id: e3
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Errors
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: ImportarGastosLambdaFunction }
+              Period: 300
+              Stat: Sum
+          - Id: i4
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Invocations
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: ProcesarStreamLambdaFunction }
+              Period: 300
+              Stat: Sum
+          - Id: e4
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Errors
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: ProcesarStreamLambdaFunction }
+              Period: 300
+              Stat: Sum
+          - Id: i5
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Invocations
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: ReporteMensualLambdaFunction }
+              Period: 300
+              Stat: Sum
+          - Id: e5
+            ReturnData: false
+            MetricStat:
+              Metric:
+                Namespace: AWS/Lambda
+                MetricName: Errors
+                Dimensions:
+                  - Name: FunctionName
+                    Value: { Ref: ReporteMensualLambdaFunction }
+              Period: 300
+              Stat: Sum
+          - Id: rate
+            Expression: IF((i1+i2+i3+i4+i5)>=20,100*(e1+e2+e3+e4+e5)/(i1+i2+i3+i4+i5),0)
+            Label: Tasa de error crítica (%)
+            ReturnData: true
+        AlarmActions:
+          - Ref: OperationalAlarmTopic
 
   Outputs:
     UserPoolId:

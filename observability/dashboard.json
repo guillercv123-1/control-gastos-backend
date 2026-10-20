@@ -1,0 +1,227 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Lambda: invocaciones y errores",
+        "view": "timeSeries",
+        "stacked": false,
+        "region": { "Ref": "AWS::Region" },
+        "period": 300,
+        "metrics": [
+          ["AWS/Lambda", "Invocations", "FunctionName", { "Ref": "CrearGastoLambdaFunction" }, { "stat": "Sum" }],
+          [".", "Errors", ".", ".", { "stat": "Sum" }],
+          ["AWS/Lambda", "Invocations", "FunctionName", { "Ref": "ListarGastosLambdaFunction" }, { "stat": "Sum" }],
+          [".", "Errors", ".", ".", { "stat": "Sum" }],
+          ["AWS/Lambda", "Invocations", "FunctionName", { "Ref": "ImportarGastosLambdaFunction" }, { "stat": "Sum" }],
+          [".", "Errors", ".", ".", { "stat": "Sum" }],
+          ["AWS/Lambda", "Invocations", "FunctionName", { "Ref": "ProcesarStreamLambdaFunction" }, { "stat": "Sum" }],
+          [".", "Errors", ".", ".", { "stat": "Sum" }],
+          ["AWS/Lambda", "Invocations", "FunctionName", { "Ref": "ReporteMensualLambdaFunction" }, { "stat": "Sum" }],
+          [".", "Errors", ".", ".", { "stat": "Sum" }]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Tasa de error agrupada de flujos críticos (%)",
+        "view": "timeSeries",
+        "region": { "Ref": "AWS::Region" },
+        "period": 300,
+        "metrics": [
+          ["AWS/Lambda", "Invocations", "FunctionName", { "Ref": "CrearGastoLambdaFunction" }, { "stat": "Sum", "id": "i1", "visible": false }],
+          ["AWS/Lambda", "Errors", "FunctionName", { "Ref": "CrearGastoLambdaFunction" }, { "stat": "Sum", "id": "e1", "visible": false }],
+          ["AWS/Lambda", "Invocations", "FunctionName", { "Ref": "ListarGastosLambdaFunction" }, { "stat": "Sum", "id": "i2", "visible": false }],
+          ["AWS/Lambda", "Errors", "FunctionName", { "Ref": "ListarGastosLambdaFunction" }, { "stat": "Sum", "id": "e2", "visible": false }],
+          ["AWS/Lambda", "Invocations", "FunctionName", { "Ref": "ImportarGastosLambdaFunction" }, { "stat": "Sum", "id": "i3", "visible": false }],
+          ["AWS/Lambda", "Errors", "FunctionName", { "Ref": "ImportarGastosLambdaFunction" }, { "stat": "Sum", "id": "e3", "visible": false }],
+          ["AWS/Lambda", "Invocations", "FunctionName", { "Ref": "ProcesarStreamLambdaFunction" }, { "stat": "Sum", "id": "i4", "visible": false }],
+          ["AWS/Lambda", "Errors", "FunctionName", { "Ref": "ProcesarStreamLambdaFunction" }, { "stat": "Sum", "id": "e4", "visible": false }],
+          ["AWS/Lambda", "Invocations", "FunctionName", { "Ref": "ReporteMensualLambdaFunction" }, { "stat": "Sum", "id": "i5", "visible": false }],
+          ["AWS/Lambda", "Errors", "FunctionName", { "Ref": "ReporteMensualLambdaFunction" }, { "stat": "Sum", "id": "e5", "visible": false }],
+          [{ "expression": "IF((i1+i2+i3+i4+i5)>=20,100*(e1+e2+e3+e4+e5)/(i1+i2+i3+i4+i5),0)", "label": "Tasa de error", "id": "rate" }]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 6,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Lambda: duración p50 / p95 / p99 (ms)",
+        "view": "timeSeries",
+        "region": { "Ref": "AWS::Region" },
+        "period": 300,
+        "metrics": [
+          ["AWS/Lambda", "Duration", "FunctionName", { "Ref": "ImportarGastosLambdaFunction" }, { "stat": "p50" }],
+          [".", ".", ".", ".", { "stat": "p95" }],
+          [".", ".", ".", ".", { "stat": "p99" }],
+          ["AWS/Lambda", "Duration", "FunctionName", { "Ref": "ProcesarStreamLambdaFunction" }, { "stat": "p50" }],
+          [".", ".", ".", ".", { "stat": "p95" }],
+          [".", ".", ".", ".", { "stat": "p99" }],
+          ["AWS/Lambda", "Duration", "FunctionName", { "Ref": "ReporteMensualLambdaFunction" }, { "stat": "p50" }],
+          [".", ".", ".", ".", { "stat": "p95" }],
+          [".", ".", ".", ".", { "stat": "p99" }]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 6,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Lambda: throttles y concurrencia",
+        "view": "timeSeries",
+        "region": { "Ref": "AWS::Region" },
+        "period": 300,
+        "metrics": [
+          ["AWS/Lambda", "Throttles", "FunctionName", { "Ref": "CrearGastoLambdaFunction" }, { "stat": "Sum" }],
+          ["AWS/Lambda", "Throttles", "FunctionName", { "Ref": "ListarGastosLambdaFunction" }, { "stat": "Sum" }],
+          ["AWS/Lambda", "Throttles", "FunctionName", { "Ref": "ImportarGastosLambdaFunction" }, { "stat": "Sum" }],
+          ["AWS/Lambda", "Throttles", "FunctionName", { "Ref": "ProcesarStreamLambdaFunction" }, { "stat": "Sum" }],
+          ["AWS/Lambda", "Throttles", "FunctionName", { "Ref": "ReporteMensualLambdaFunction" }, { "stat": "Sum" }],
+          ["AWS/Lambda", "ConcurrentExecutions", "FunctionName", { "Ref": "ImportarGastosLambdaFunction" }, { "stat": "Maximum" }],
+          ["AWS/Lambda", "ConcurrentExecutions", "FunctionName", { "Ref": "ProcesarStreamLambdaFunction" }, { "stat": "Maximum" }],
+          ["AWS/Lambda", "ConcurrentExecutions", "FunctionName", { "Ref": "ReporteMensualLambdaFunction" }, { "stat": "Maximum" }]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 12,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "DynamoDB Streams: antigüedad del iterador",
+        "view": "timeSeries",
+        "region": { "Ref": "AWS::Region" },
+        "period": 60,
+        "metrics": [
+          ["AWS/Lambda", "IteratorAge", "FunctionName", { "Ref": "ProcesarStreamLambdaFunction" }, { "stat": "Maximum" }]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 12,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "SQS: importación y DLQ",
+        "view": "timeSeries",
+        "region": { "Ref": "AWS::Region" },
+        "period": 60,
+        "metrics": [
+          ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", { "Fn::GetAtt": ["ImportQueue", "QueueName"] }, { "stat": "Maximum", "label": "Cola importación visibles" }],
+          [".", "ApproximateAgeOfOldestMessage", ".", ".", { "stat": "Maximum", "label": "Cola importación edad (s)" }],
+          [".", "NumberOfMessagesSent", ".", ".", { "stat": "Sum" }],
+          [".", "NumberOfMessagesReceived", ".", ".", { "stat": "Sum" }],
+          [".", "NumberOfMessagesDeleted", ".", ".", { "stat": "Sum" }],
+          ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", { "Fn::GetAtt": ["ImportDLQ", "QueueName"] }, { "stat": "Maximum", "label": "DLQ visibles" }]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "DynamoDB: latencia y errores",
+        "view": "timeSeries",
+        "region": { "Ref": "AWS::Region" },
+        "period": 300,
+        "metrics": [
+          ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", { "Ref": "GastosTable" }, "Operation", "GetItem", { "stat": "Average" }],
+          [".", ".", ".", ".", ".", "PutItem", { "stat": "Average" }],
+          [".", ".", ".", ".", ".", "DeleteItem", { "stat": "Average" }],
+          [".", ".", ".", ".", ".", "Query", { "stat": "Average" }],
+          [".", ".", ".", ".", ".", "Scan", { "stat": "Average" }],
+          [".", ".", ".", ".", ".", "BatchWriteItem", { "stat": "Average" }],
+          ["AWS/DynamoDB", "UserErrors", { "stat": "Sum", "label": "UserErrors (cuenta/región)" }],
+          ["AWS/DynamoDB", "SystemErrors", "TableName", { "Ref": "GastosTable" }, "Operation", "GetItem", { "stat": "Sum" }],
+          [".", ".", ".", ".", ".", "PutItem", { "stat": "Sum" }],
+          [".", ".", ".", ".", ".", "DeleteItem", { "stat": "Sum" }],
+          [".", ".", ".", ".", ".", "Query", { "stat": "Sum" }],
+          [".", ".", ".", ".", ".", "Scan", { "stat": "Sum" }],
+          [".", ".", ".", ".", ".", "BatchWriteItem", { "stat": "Sum" }],
+          ["AWS/DynamoDB", "ThrottledRequests", "TableName", { "Ref": "GastosTable" }, "Operation", "GetItem", { "stat": "Sum" }],
+          [".", ".", ".", ".", ".", "PutItem", { "stat": "Sum" }],
+          [".", ".", ".", ".", ".", "DeleteItem", { "stat": "Sum" }],
+          [".", ".", ".", ".", ".", "Query", { "stat": "Sum" }],
+          [".", ".", ".", ".", ".", "Scan", { "stat": "Sum" }],
+          [".", ".", ".", ".", ".", "BatchWriteItem", { "stat": "Sum" }]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "DynamoDB: capacidad consumida",
+        "view": "timeSeries",
+        "region": { "Ref": "AWS::Region" },
+        "period": 300,
+        "metrics": [
+          ["AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", { "Ref": "GastosTable" }, { "stat": "Sum" }],
+          [".", "ConsumedWriteCapacityUnits", ".", ".", { "stat": "Sum" }]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 24,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "SNS: publicaciones y fallos de notificación",
+        "view": "timeSeries",
+        "region": { "Ref": "AWS::Region" },
+        "period": 300,
+        "metrics": [
+          ["AWS/SNS", "NumberOfMessagesPublished", "TopicName", { "Fn::GetAtt": ["AlertTopic", "TopicName"] }, { "stat": "Sum" }],
+          [".", "NumberOfNotificationsFailed", ".", ".", { "stat": "Sum" }]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 24,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Reporte mensual: invocaciones y fallos programados",
+        "view": "timeSeries",
+        "region": { "Ref": "AWS::Region" },
+        "period": 300,
+        "metrics": [
+          ["AWS/Lambda", "Invocations", "FunctionName", { "Ref": "ReporteMensualLambdaFunction" }, { "stat": "Sum" }],
+          [".", "Errors", ".", ".", { "stat": "Sum" }],
+          ["AWS/Events", "Invocations", "RuleName", { "Ref": "ReporteMensualEventsRuleSchedule1" }, { "stat": "Sum" }],
+          [".", "FailedInvocations", ".", ".", { "stat": "Sum" }]
+        ]
+      }
+    }
+  ]
+}
