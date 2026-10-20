@@ -20,3 +20,4 @@ aws.json
 .serverless/
 .esbuild/
 /scripts/
+/info/
