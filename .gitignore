@@ -21,3 +21,4 @@ aws.json
 .esbuild/
 /scripts/
 /info/
+/docs/

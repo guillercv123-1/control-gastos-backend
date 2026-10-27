@@ -25,7 +25,7 @@ Crear usuario de prueba y obtener token (reemplaza POOL_ID y CLIENT_ID por los O
     aws cognito-idp initiate-auth --auth-flow USER_PASSWORD_AUTH --client-id CLIENT_ID \
       --auth-parameters USERNAME=TU_EMAIL,PASSWORD="PASSWORD"
 
-Copia el "IdToken" de la respuesta y mandalo en el header:  Authorization: Bearer <IdToken>
+
 
 ## Endpoints
     GET    /health                       -> publico
