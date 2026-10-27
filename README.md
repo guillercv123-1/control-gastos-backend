@@ -26,7 +26,6 @@ Crear usuario de prueba y obtener token (reemplaza POOL_ID y CLIENT_ID por los O
       --auth-parameters USERNAME=TU_EMAIL,PASSWORD="PASSWORD"
 
 
-
 ## Endpoints
     GET    /health                       -> publico
     POST   /gastos                       -> crea un gasto        (requiere token)
