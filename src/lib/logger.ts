@@ -19,7 +19,8 @@ export type LogOperation =
   | 'monthly_report_published'
   | 'monthly_report'
   | 'sqs_import_message'
-  | 'stream_record_processing';
+  | 'stream_record_processing'
+  | 'PRUEBA';
 
 export type LogSourceType = 'csv' | 'dynamodb' | 'dynamodb_stream' | 's3' | 'sqs';
 

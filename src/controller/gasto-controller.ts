@@ -23,6 +23,7 @@ export class GastoController {
         const userId = getUserId(event);
         const input = parseCrearGasto(event.body);
         const gasto = await gastoService.crear(userId, input);
+        logger.info({ operation: 'PRUEBA' });
         logger.info({ operation: 'expense_created' });
         return created(gasto);
     }
